@@ -39,9 +39,10 @@ def sync_redis_repeat_books(dir_path):
 # download_file.delay("http://dzs.qisuu.com/txt/26.txt")
 
 if __name__ == '__main__':
-    # classify_infos = pickle.load(open("classify_infos.p", "rb"))
-    #
-    # for k, v in classify_infos.items():
-    #     print "add %s, %s" % (k, v)
-    #     parse_category_url.delay(v, category_type=k)
     sync_redis_repeat_books('txt')
+    classify_infos = pickle.load(open("classify_infos.p", "rb"))
+    for k, v in classify_infos.items():
+        print "add %s, %s" % (k, v)
+        parse_category_url.delay(v, category_type=k)
+
+    #

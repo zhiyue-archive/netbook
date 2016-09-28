@@ -7,8 +7,7 @@ import logging
 import random
 from config import *
 from utils import getproxy, check_repeate, set_repeate
-from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
 from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
@@ -42,7 +41,7 @@ def parse_category_url(classify_index_url, proxies=None, timeout=DOWNLOAD_TIMEOU
         if use_proxy:
             proxies = getproxy(retries + 1)
             logging.info("Retry: %s and Proxy: %s and url: %s", retries, proxies, classify_index_url)
-        r = requests.get(classify_index_url, proxies=proxies, timeout=timeout, **kwargs)
+        r = requests.get(classify_index_url, proxies=proxies, timeout=timeout)
         if r.status_code == 200:
             soup = BeautifulSoup(r.content, "lxml")
             classify_urls = soup.select(".tspage select option")
@@ -69,11 +68,11 @@ def parse_book_url(category_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_pro
         if use_proxy:
             proxies = getproxy(retries + 1)
             logging.info("Retry: %s and Proxy: %s and url: %s", retries, proxies, category_url)
-        r = requests.get(category_url, proxies=proxies, timeout=timeout, **kwargs)
+        r = requests.get(category_url, proxies=proxies, timeout=timeout)
         if r.status_code == 200:
             soup = BeautifulSoup(r.content, "lxml")
             for b in soup.select(".listBox > ul li > a"):
-                tasks_schedule.delay(url=BaseUrl + b['href'], **kwargs)
+                tasks_schedule.delay(task_url=BaseUrl + b['href'], task_type="parse_book_info", **kwargs)
                 # parse_book_info.delay(BaseUrl + b['href'])
             return "Finish parse category_url: %s" % category_url
         else:
@@ -92,11 +91,11 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
         if use_proxy:
             proxies = getproxy(retries + 1)
             logging.info("Retry: %s and Proxy: %s and url: %s", retries, proxies, book_info_url)
-        r = requests.get(book_info_url, proxies=proxies, timeout=timeout, **kwargs)
+        r = requests.get(book_info_url, proxies=proxies, timeout=timeout)
         if r.status_code == 200:
             soup = BeautifulSoup(r.content, "lxml")
             book_info = dict()
-            book_info["name"] = soup.select(".showDown ul li")[1].a["href"].split("/")[-1].split(".")[0]
+            book_info["name"] = soup.select(".detail_right h1")[0].string.split(u'》')[0].split(u'《')[-1]
             book_info["author"] = soup.select(".detail .detail_right ul li")[6].a.string
             book_info["rate"] = filter(str.isdigit, soup.select(".detail .detail_right ul li")[7].em["class"][0])
             book_info["download_url"] = soup.select(".showDown ul li")[1].a["href"]
@@ -130,7 +129,7 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
         if use_proxy:
             proxies = getproxy(retries + 1)
             logging.info("Retry: %s and Proxy: %s and url: %s", retries, proxies, url)
-        r = requests.get(url, proxies=proxies, stream=True, timeout=timeout, **kwargs)
+        r = requests.get(url, proxies=proxies, stream=True, timeout=timeout)
         if r.status_code == 200:
             with open(fname, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=4096):
@@ -165,25 +164,41 @@ def tasks_schedule(task_url, task_type, **kwargs):
     session = Session()
     query = session.query(NetBook)
     r = redis.StrictRedis(connection_pool=pool)
-    # 检查是否已经存在这个url，重复则not_repeat=0
-    not_repeat = check_repeate(r, task_url, DUPLICATION_KEY)
-    if not not_repeat:  # 重复则代表该任务已经完成, 直接返回
-        return
+    # 检查集合是否已经存在这个url，重复则repeat=1
+    repeat = check_repeate(r, task_url, DUPLICATION_KEY)
+    if repeat:  # 重复则代表该任务已经完成, 直接返回
+        return "repeat task--- type:%s, task: %s" % (task_type, task_url)
     if task_type == 'parse_book_info':
+        logging.info('parse_book_info:%s', task_url)
         parse_book_info.delay(task_url, **kwargs)
-        query.filter_by(info_url=task_url).update({'info_url': task_url, 'category_type': kwargs['category_type']})
+        logging.info('update info_url:%s', task_url)
+        nbook = NetBook(**{'info_url': task_url, 'category': kwargs['category_type']})
+        session.merge(nbook)
     elif task_type == 'download_file':
+
         if not check_repeate(r, kwargs['file_name'], DUPLICATION_KEY):
+            logging.info('download_file:%s', task_url)
             download_file.delay(task_url, **kwargs)
         else:
+            logging.info('set_repeate:%s', task_url)
             set_repeate(r, kwargs['download_url'], DUPLICATION_KEY)
-
-        query.filter_by(info_url=kwargs['info_url']).update({'name': kwargs['name'], 'info_url': kwargs['info_url'],
-                                                             'file_name': kwargs['file_name'],
-                                                             'author': kwargs['author'], 'rate': kwargs['rate'],
-                                                             'download_url': kwargs['download_url']})
+        logging.info('update parse_book_info:%s', task_url)
+        nbook = NetBook(**{'name': kwargs['name'], 'info_url': kwargs['info_url'], 'file_name': kwargs['file_name'],
+                           'author': kwargs['author'], 'rate': kwargs['rate'], 'download_url': kwargs['download_url']})
+        session.merge(nbook)
     elif task_type == 'set_repeate':
+        logging.info('set_repeate:%s', task_url)
         set_repeate(r, task_url, DUPLICATION_KEY)
     session.commit()
     Session.remove()
-    return False
+    return "tasks_schedule---type:%s url: %s" % (task_type, task_url)
+
+# if __name__ == '__main__':
+#     Session = scoped_session(session_factory)
+#     session = Session()
+#     # query = session.query(NetBook)
+#     netbook = NetBook(**{'author': "www.baidu.com", 'download_url': 'hahhah'})
+#     # query.filter(NetBook.info_url == "baidu.com").update({'info_url': "www.baidu.com", 'category': 'hahhah'})
+#     session.merge(netbook)
+#     session.commit()
+#     Session.remove()
