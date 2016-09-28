@@ -48,14 +48,13 @@ def get_session():
 class NetBook(Base):
     __tablename__ = 'book'
 
-    id = Column(Integer, primary_key=True)
+    info_url = Column(String, primary_key=True)
     name = Column(String)
     file_name = Column(String)
     author = Column(String)
     rate = Column(Float)
     tag = Column(String)
     category = Column(String)
-    info_url = Column(String)
     download_url = Column(String)
     word_count = Column(Integer)
     download_flag = Column(Boolean)
