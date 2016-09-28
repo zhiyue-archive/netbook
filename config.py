@@ -22,8 +22,8 @@ DB_POOL_SIZE = 20
 
 
 # celery config
-BROKER_URL = 'redis://localhost:6379/5'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/4'
+BROKER_URL = 'redis://192.168.1.100:6379/5'
+CELERY_RESULT_BACKEND = 'redis://192.168.1.100:6379/4'
 CELERY_IMPORTS = ('tasks', )
 # CELERY_RESULT_PERSISTENT = True
 # CELERY_TASK_RESULT_EXPIRES = None
@@ -33,7 +33,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_QUEUES = (
     Queue('default', Exchange('tasks', type='topic'), routing_key='tasks.default'),
-    Queue('dowload', Exchange('tasks', type='topic'), routing_key='tasks.download'),
+    Queue('download', Exchange('tasks', type='topic'), routing_key='tasks.download'),
     Queue('parse', Exchange('tasks', type='topic'), routing_key='tasks.parse'),
     Queue('schedule', Exchange('tasks', type='topic'), routing_key='tasks.schedule')
 )
@@ -52,7 +52,7 @@ CELERY_ROUTES = {
         'routing_key': 'tasks.parse',
     },
     'tasks.download_file': {
-        'routing_key': 'tasks.dowload'
+        'routing_key': 'tasks.download'
     },
     'tasks.tasks_schedule': {
         'routing_key': 'tasks.schedule',

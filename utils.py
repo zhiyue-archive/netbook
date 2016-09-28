@@ -168,8 +168,8 @@ def check_repeate(r, check_str, set_name):
     :param set_name:项目所使用的集合名称，建议如下格式：”projectname:task_remove_repeate“
     :return:
         :rtype: bool
-            0: 重复
-            1: 不重复
+            0: 不重复
+            1: 重复
     """
     check_str = check_str.encode('utf-8')
     hash_value = sha1(check_str)
