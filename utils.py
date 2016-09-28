@@ -3,6 +3,19 @@
 """
 
 """
+from contextlib import contextmanager
+import tempfile
+import os
+import cPickle as pickle
+import shutil
+import requests
+import logging
+import random
+import functools
+import redis
+import hashlib
+from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
 __credits__ = ["zhiyue"]
@@ -12,20 +25,11 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
-
-from contextlib import contextmanager
-
-import tempfile
-import os
-import cPickle as pickle
-import shutil
-import requests
-import logging
-
 logging.basicConfig(level=logging.INFO,
                     format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
                     datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
+
 
 # Context managers for atomic writes courtesy of
 # http://stackoverflow.com/questions/2333872/atomic-writing-to-file-with-python
@@ -112,5 +116,83 @@ def download_file(url, local_filename=None, proxies=None):
         raise
 
 
+def proxy_config(host="127.0.0.1", port="6379", db=0):
+    pool = redis.ConnectionPool(host=host, port=port, db=db)
+    redis_conn = redis.StrictRedis(connection_pool=pool)
+    key = "ipproxy:1"  # 暂时使用高匿名代理
 
-download_file(u"http://dzs.qisuu.com/txt/我的农场在沙漠.txt")
+    def handle_func(func):
+        @functools.wraps(func)
+        def handle_args(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        return functools.partial(handle_args, redis_conn, key)
+
+    return handle_func
+
+
+@proxy_config(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
+def getproxy(redis_conn, key, weight):
+    # 根据权重随机获取代理ip, weight : [1...10]
+    # 代理IP在redis中以zset存储, weight越大,ip质量越差
+    total = redis_conn.zcard(key)
+    ips = redis_conn.zrange(key, 0, total / 10 * weight)
+    logging.info("ip numbers: %s", len(ips))
+    #   获取全部代理IP
+    #   ips = r.zrange(key, 0, -1)
+    proxies = {
+        "http": "http://%s" % ips[random.randint(0, len(ips) - 1)]
+    }
+    return proxies
+
+
+def redis_init(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB):
+    pool = redis.ConnectionPool(host=host, port=port, db=db)
+    redis_conn = redis.StrictRedis(connection_pool=pool)
+    return pool, redis_conn
+
+
+def sha1(x):
+    sha1obj = hashlib.sha1()
+    sha1obj.update(x)
+    hash_value = sha1obj.hexdigest()
+    return hash_value
+
+
+def check_repeate(r, check_str, set_name):
+    """
+    redis集合检查元素，重复则返回0，不重复则添加成功，并返回1
+
+    :param r:redis连接
+    :param check_str:被添加的字符串
+    :param set_name:项目所使用的集合名称，建议如下格式：”projectname:task_remove_repeate“
+    :return:
+        :rtype: bool
+            0: 重复
+            1: 不重复
+    """
+    hash_value = sha1(check_str)
+    # result = r.sadd(set_name, hash_value)
+    result = r.sismember(set_name, hash_value)
+    return result
+
+
+def set_repeate(r, check_str, set_name):
+    """
+    向redis集合中添加元素，重复则返回0，不重复则添加成功，并返回1
+
+    :param r:redis连接
+    :param check_str:被添加的字符串
+    :param set_name:项目所使用的集合名称，建议如下格式：”projectname:task_remove_repeate“
+    :return:
+        :rtype: bool
+            0: 重复
+            1: 不重复
+    """
+    hash_value = sha1(check_str)
+    result = r.sadd(set_name, hash_value)
+    return result
+
+
+if __name__ == '__main__':
+    download_file(u"http://dzs.qisuu.com/txt/我的农场在沙漠.txt")

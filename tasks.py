@@ -2,12 +2,19 @@
 # -*- coding: utf-8 -*-
 from celery_app import app
 import os
-import redis
 import requests
-import functools
 import logging
 import random
 from config import *
+from utils import getproxy, check_repeate, set_repeate
+from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.pool import SingletonThreadPool
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
+from config import DB_URI
+from database import NetBook
+import redis
 
 try:
     from BeautifulSoup import BeautifulSoup
@@ -20,67 +27,12 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
 
+engine = create_engine(DB_URI, poolclass=SingletonThreadPool, pool_size=20)
+session_factory = sessionmaker(bind=engine)
 
-BaseUrl = "http://www.qisuu.com"
-
-
-def proxy_config(host="127.0.0.1", port="6379", db=0):
-    pool = redis.ConnectionPool(host=host, port=port, db=db)
-    redis_conn = redis.StrictRedis(connection_pool=pool)
-    key = "ipproxy:1"  # 暂时使用高匿名代理
-
-    def handle_func(func):
-        @functools.wraps(func)
-        def handle_args(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        return functools.partial(handle_args, redis_conn, key)
-
-    return handle_func
-
-
-@proxy_config(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
-def getproxy(redis_conn, key, weight):
-    # 根据权重随机获取代理ip, weight : [1...10]
-    # 代理IP在redis中以zset存储, weight越大,ip质量越差
-    total = redis_conn.zcard(key)
-    ips = redis_conn.zrange(key, 0, total / 10 * weight)
-    logging.info("ip numbers: %s", len(ips))
-    #   获取全部代理IP
-    #   ips = r.zrange(key, 0, -1)
-    proxies = {
-        "http": "http://%s" % ips[random.randint(0, len(ips) - 1)]
-    }
-    return proxies
-
-
-def retry(max_retries=RETRY_TIMES, use_proxy=USE_PROXY):
-    def handle_func(func):
-        @functools.wraps(func)
-        def handle_args(*args, **kwargs):
-            try:
-                retries = 0
-                while True:
-                    proxies = None
-                    if use_proxy:
-                        proxies = getproxy(retries + 1)
-                        # logging.info(proxies)
-                    try:
-                        # kwargs['proxies'] = proxies
-                        func(proxies=proxies, *args, **kwargs)
-                        return True
-                    except Exception as e:
-                        print e
-                    logging.error("fail! and %s retrying ", retries)
-                    retries += 1
-                    if retries > max_retries:
-                        logging.error("fail too many times")
-                        raise Exception
-            except Exception as e:
-                print e
-        return handle_args
-
-    return handle_func
+# dumplite
+pool = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
+redis_conn = redis.StrictRedis(connection_pool=pool)
 
 
 @app.task(retries=10, default_retry_delay=5)
@@ -95,9 +47,9 @@ def parse_category_url(classify_index_url, proxies=None, timeout=DOWNLOAD_TIMEOU
             soup = BeautifulSoup(r.content, "lxml")
             classify_urls = soup.select(".tspage select option")
             for url in classify_urls:
-                parse_book_url.delay(BaseUrl + url['value'])
+                parse_book_url.delay(BaseUrl + url['value'], **kwargs)
             r.close()
-            return BaseUrl + url['value']
+            return "Finish parse classify_index_url: %s" % classify_index_url
         else:
             logging.error("Error: Unexpected response {}".format(r))
             raise
@@ -121,8 +73,9 @@ def parse_book_url(category_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_pro
         if r.status_code == 200:
             soup = BeautifulSoup(r.content, "lxml")
             for b in soup.select(".listBox > ul li > a"):
-                parse_book_info.delay(BaseUrl + b['href'])
-            return BaseUrl + b['href']
+                tasks_schedule.delay(url=BaseUrl + b['href'], **kwargs)
+                # parse_book_info.delay(BaseUrl + b['href'])
+            return "Finish parse category_url: %s" % category_url
         else:
             logging.error("Error: Unexpected response {}".format(r))
             raise
@@ -147,7 +100,13 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
             book_info["author"] = soup.select(".detail .detail_right ul li")[6].a.string
             book_info["rate"] = filter(str.isdigit, soup.select(".detail .detail_right ul li")[7].em["class"][0])
             book_info["download_url"] = soup.select(".showDown ul li")[1].a["href"]
-            download_file.delay(book_info["download_url"])
+            book_info['file_name'] = book_info["download_url"].split('/')[-1]
+            book_info['info_url'] = book_info_url
+            # update kwargs
+            kwargs = dict(kwargs, **book_info)
+            tasks_schedule.delay(task_url=book_info["download_url"], task_type="download_file", **kwargs)
+            tasks_schedule.delay(task_url=book_info_url, task_type="set_repeate", **kwargs)
+            # download_file.delay(book_info["download_url"])
             return book_info["download_url"]
         else:
             logging.error("Error: Unexpected response {}".format(r))
@@ -155,7 +114,7 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
     except Exception as e:
         logging.error(e)
         parse_book_info.retry(args=[book_info_url, proxies, timeout, use_proxy, parse_book_info.request.retries + 1],
-                              exc=e,kwargs=kwargs)
+                              exc=e, kwargs=kwargs)
     return True
 
 
@@ -178,6 +137,7 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
                     if chunk:  # filter out keep-alive new chunks
                         f.write(chunk)
                 logging.info("Finish download %s", url)
+                tasks_schedule.delay(task_url=url, task_type="set_repeate", **kwargs)
                 r.close()
                 return True
         else:
@@ -189,3 +149,41 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
                                   use_proxy, download_file.request.retries + 1],
                             exc=e, kwargs=kwargs)
     return True
+
+
+@app.task(retries=10, default_retry_delay=5)
+def tasks_schedule(task_url, task_type, **kwargs):
+    """
+
+    :param task_url:
+    :param task_type:
+    :param kwargs:
+    :return:
+    """
+
+    Session = scoped_session(session_factory)
+    session = Session()
+    query = session.query(NetBook)
+    r = redis.StrictRedis(connection_pool=pool)
+    # 检查是否已经存在这个url，重复则not_repeat=0
+    not_repeat = check_repeate(r, task_url, DUPLICATION_KEY)
+    if not not_repeat:  # 重复则代表该任务已经完成, 直接返回
+        return
+    if task_type == 'parse_book_info':
+        parse_book_info.delay(task_url, **kwargs)
+        query.filter_by(info_url=task_url).update({'info_url': task_url, 'category_type': kwargs['category_type']})
+    elif task_type == 'download_file':
+        if not check_repeate(r, kwargs['file_name'], DUPLICATION_KEY):
+            download_file.delay(task_url, **kwargs)
+        else:
+            set_repeate(r, kwargs['download_url'], DUPLICATION_KEY)
+
+        query.filter_by(info_url=kwargs['info_url']).update({'name': kwargs['name'], 'info_url': kwargs['info_url'],
+                                                             'file_name': kwargs['file_name'],
+                                                             'author': kwargs['author'], 'rate': kwargs['rate'],
+                                                             'download_url': kwargs['download_url']})
+    elif task_type == 'set_repeate':
+        set_repeate(r, task_url, DUPLICATION_KEY)
+    session.commit()
+    Session.remove()
+    return False

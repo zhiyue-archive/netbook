@@ -3,6 +3,13 @@
 """
 
 """
+import logging
+from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.scoping import scoped_session
+from config import DB_URI
+
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -13,31 +20,48 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
-from sqlalchemy import Column, String, create_engine, Integer, Table, MetaData
-from sqlalchemy.orm import mapper, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+logging.basicConfig(level=logging.INFO,
+                    format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
+                    datefmt='%H:%M:%S')
+logger = logging.getLogger(__name__)
 
-engine = create_engine("sqlite:///netbook.db", echo=True)
-metadata = MetaData()
-metadata.create_all(engine)  #在数据库中生成表
 Base = declarative_base()
 
-book_table = Table(
-    'book', metadata,
-    Column('id', Integer, primary_key=True),
-    Column('name', String),
-    Column('author', String),
-    Column('rage', String),
-    Column('tag', String),
-    Column('category', String)
-)
-
-metadata.create_all(engine)
+engine = create_engine(DB_URI)
+DB_Session = sessionmaker(bind=engine)
 
 
-class NetBook(object):
-    pass
+class SessionProxy:
+    def __enter__(self):
+        self.session = scoped_session(DB_Session)
+        return self.session
+
+    def __exit__(self, type, value, trace):
+        self.session.remove()
+        logger.error('session error %s', trace) if trace is not None else trace
 
 
-mapper(NetBook, book_table)
+def get_session():
+    return SessionProxy()
+
+
+class NetBook(Base):
+    __tablename__ = 'book'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    file_name = Column(String)
+    author = Column(String)
+    rate = Column(Float)
+    tag = Column(String)
+    category = Column(String)
+    info_url = Column(String)
+    download_url = Column(String)
+    word_count = Column(Integer)
+    download_flag = Column(Boolean)
+
+if __name__ == '__main__':
+    engine = create_engine(DB_URI, echo=True)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
