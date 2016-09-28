@@ -171,6 +171,7 @@ def check_repeate(r, check_str, set_name):
             0: 重复
             1: 不重复
     """
+    check_str = check_str.encode('utf-8')
     hash_value = sha1(check_str)
     # result = r.sadd(set_name, hash_value)
     result = r.sismember(set_name, hash_value)
@@ -189,6 +190,7 @@ def set_repeate(r, check_str, set_name):
             0: 重复
             1: 不重复
     """
+    check_str = check_str.encode('utf-8')
     hash_value = sha1(check_str)
     result = r.sadd(set_name, hash_value)
     return result
