@@ -34,7 +34,7 @@ pool = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 redis_conn = redis.StrictRedis(connection_pool=pool)
 
 
-@app.task(retries=10, default_retry_delay=5)
+@app.task(max_retries=10, default_retry_delay=5)
 def parse_category_url(classify_index_url, proxies=None, timeout=DOWNLOAD_TIMEOUT,
                        use_proxy=USE_PROXY, retries=0, **kwargs):
     try:
@@ -62,7 +62,7 @@ def parse_category_url(classify_index_url, proxies=None, timeout=DOWNLOAD_TIMEOU
     return True
 
 
-@app.task(retries=10, default_retry_delay=5)
+@app.task(max_retries=10, default_retry_delay=5)
 def parse_book_url(category_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_proxy=USE_PROXY, retries=0, **kwargs):
     try:
         if use_proxy:
@@ -85,7 +85,7 @@ def parse_book_url(category_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_pro
     return True
 
 
-@app.task(retries=10, default_retry_delay=5)
+@app.task(max_retries=10, default_retry_delay=5)
 def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_proxy=USE_PROXY, retries=0, **kwargs):
     try:
         if use_proxy:
@@ -117,7 +117,7 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
     return True
 
 
-@app.task(retries=10, default_retry_delay=5)
+@app.task(max_retries=10, default_retry_delay=5)
 def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_proxy=USE_PROXY, retries=0,
                   **kwargs):
     if not local_filename:
@@ -150,7 +150,7 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
     return True
 
 
-@app.task(retries=10, default_retry_delay=5)
+@app.task(max_retries=10, default_retry_delay=5)
 def tasks_schedule(task_url, task_type, **kwargs):
     """
 
@@ -159,15 +159,14 @@ def tasks_schedule(task_url, task_type, **kwargs):
     :param kwargs:
     :return:
     """
-
-    Session = scoped_session(session_factory)
-    session = Session()
-    query = session.query(NetBook)
     r = redis.StrictRedis(connection_pool=pool)
     # 检查集合是否已经存在这个url，重复则repeat=1
     repeat = check_repeate(r, task_url, DUPLICATION_KEY)
     if repeat:  # 重复则代表该任务已经完成, 直接返回
         return "repeat task--- type:%s, task: %s" % (task_type, task_url)
+
+    Session = scoped_session(session_factory)
+    session = Session()
     if task_type == 'parse_book_info':
         logging.info('parse_book_info:%s', task_url)
         parse_book_info.delay(task_url, **kwargs)
