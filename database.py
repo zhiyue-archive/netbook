@@ -31,20 +31,6 @@ engine = create_engine(DB_URI)
 DB_Session = sessionmaker(bind=engine)
 
 
-class SessionProxy:
-    def __enter__(self):
-        self.session = scoped_session(DB_Session)
-        return self.session
-
-    def __exit__(self, type, value, trace):
-        self.session.remove()
-        logger.error('session error %s', trace) if trace is not None else trace
-
-
-def get_session():
-    return SessionProxy()
-
-
 class NetBook(Base):
     __tablename__ = 'book'
 
@@ -59,8 +45,16 @@ class NetBook(Base):
     word_count = Column(Integer)
     download_flag = Column(Boolean)
 
+
+class Category(Base):
+    __tablename__ = 'category'
+
+    name = Column(String, primary_key=True)
+    count = Column(Integer)
+
 if __name__ == '__main__':
     engine = create_engine(DB_URI, echo=True)
-    Base.metadata.drop_all(bind=engine)
+
+    #Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
