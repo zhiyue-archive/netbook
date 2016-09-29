@@ -20,7 +20,6 @@ try:
 except ImportError:
     from bs4 import BeautifulSoup
 
-
 logging.basicConfig(level=logging.INFO,
                     format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
                     datefmt='%H:%M:%S')
@@ -96,7 +95,10 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
             soup = BeautifulSoup(r.content, "lxml")
             book_info = dict()
             book_info["name"] = soup.select(".detail_right h1")[0].string.split(u'》')[0].split(u'《')[-1]
-            book_info["author"] = soup.select(".detail .detail_right ul li")[6].a.string
+            try:
+                book_info["author"] = soup.select(".detail .detail_right ul li")[6].a.string
+            except:
+                book_info["author"] = soup.select(".detail .detail_right ul li")[6].string.split(':')[-1]
             book_info["rate"] = filter(str.isdigit, soup.select(".detail .detail_right ul li")[7].em["class"][0])
             book_info["download_url"] = soup.select(".showDown ul li")[1].a["href"]
             book_info['file_name'] = book_info["download_url"].split('/')[-1]
@@ -171,8 +173,9 @@ def tasks_schedule(task_url, task_type, **kwargs):
         logging.info('parse_book_info:%s', task_url)
         parse_book_info.delay(task_url, **kwargs)
         logging.info('update info_url:%s', task_url)
-        nbook = NetBook(**{'info_url': task_url, 'category': kwargs['category_type']})
-        session.merge(nbook)
+        if 'category_type' in kwargs.keys():
+            nbook = NetBook(**{'info_url': task_url, 'category': kwargs['category_type']})
+            session.merge(nbook)
     elif task_type == 'download_file':
 
         if not check_repeate(r, kwargs['file_name'], DUPLICATION_KEY):
@@ -182,9 +185,12 @@ def tasks_schedule(task_url, task_type, **kwargs):
             logging.info('set_repeate:%s', task_url)
             set_repeate(r, kwargs['download_url'], DUPLICATION_KEY)
         logging.info('update parse_book_info:%s', task_url)
-        nbook = NetBook(**{'name': kwargs['name'], 'info_url': kwargs['info_url'], 'file_name': kwargs['file_name'],
-                           'author': kwargs['author'], 'rate': kwargs['rate'], 'download_url': kwargs['download_url']})
-        session.merge(nbook)
+
+        if 'author' in kwargs.keys():
+            nbook = NetBook(**{'name': kwargs['name'], 'info_url': kwargs['info_url'], 'file_name': kwargs['file_name'],
+                               'author': kwargs['author'], 'rate': kwargs['rate'],
+                               'download_url': kwargs['download_url']})
+            session.merge(nbook)
     elif task_type == 'set_repeate':
         logging.info('set_repeate:%s', task_url)
         set_repeate(r, task_url, DUPLICATION_KEY)
