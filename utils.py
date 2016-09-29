@@ -171,7 +171,7 @@ def check_repeate(r, check_str, set_name):
             0: 不重复
             1: 重复
     """
-    check_str = check_str.encode('utf-8')
+    check_str = check_str.encode('utf-8', 'ignore')
     hash_value = sha1(check_str)
     # result = r.sadd(set_name, hash_value)
     result = r.sismember(set_name, hash_value)
@@ -190,10 +190,50 @@ def set_repeate(r, check_str, set_name):
             0: 重复
             1: 不重复
     """
-    check_str = check_str.encode('utf-8')
+    check_str = check_str.encode('utf-8', 'ignore')
     hash_value = sha1(check_str)
     result = r.sadd(set_name, hash_value)
     return result
+
+
+def del_hash_value_in_repeate_set(r, del_str, set_name):
+    """
+    删除redis集合中的元素
+    :param r:
+    :param del_str:
+    :param set_name:
+    :return:
+    """
+    del_str = del_str.encode('utf-8', 'ignore')
+    hash_value = sha1(del_str)
+    result = r.srem(set_name, hash_value)
+    return result
+
+
+def del_batch_hash_value_in_redis_repeate_set(r, del_str_list, set_name):
+    # del_str_list = map(str.encode, del_str_list)
+    # del_str_list = [s.encode('utf-8') for s in del_str_list]
+    # sha1_list = map(sha1, del_str_list)
+    # r.srem(set_name, *set(sha1_list))
+
+    pipe = r.pipeline()
+    for file_name in del_str_list:
+        file_name = file_name.encode('utf-8', 'ignore')
+        hash_value = sha1(file_name)
+        pipe.srem(set_name, hash_value)
+    pipe.execute()
+
+
+def set_batch_repeate(r, check_str_list, set_name):
+    # check_str_list = [s.encode('utf-8') for s in check_str_list]
+    # sha1_list = map(sha1, check_str_list)
+    # r.sadd(set_name, *set(sha1_list))
+    pipe = r.pipeline()
+    for file_name in check_str_list:
+        file_name = file_name.encode('utf-8', 'ignore')
+        hash_value = sha1(file_name)
+        pipe.sadd(set_name, hash_value)
+    pipe.execute()
 
 
 if __name__ == '__main__':
