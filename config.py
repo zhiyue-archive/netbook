@@ -6,6 +6,9 @@ __author__ = 'zhiyue'
 BaseUrl = "http://www.qisuu.com"
 DUPLICATION_KEY = 'netbook:task_remove_repeate'
 
+# qisuu.com setting
+
+BOOK_INFO_INDEX_PER_PAGE_NUM = 15
 
 # dowdload proxy config
 USE_PROXY = True
