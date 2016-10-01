@@ -15,6 +15,8 @@ import functools
 import redis
 import hashlib
 from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+from types import StringType
+import re
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -234,6 +236,23 @@ def set_batch_repeate(r, check_str_list, set_name):
         hash_value = sha1(file_name)
         pipe.sadd(set_name, hash_value)
     pipe.execute()
+
+
+def caculateWords(s, encoding='utf-8'):
+    rx = re.compile(u"[a-zA-Z0-9_\u0392-\u03c9]+|[\u4E00-\u9FFF\u3400-\u4dbf\uf900-\ufaff\u3040-\u309f\uac00-\ud7af]+",
+                    re.UNICODE)
+    if type(s) is StringType:  # not unicode
+        s = unicode(s, encoding, 'ignore')
+
+    splitted = rx.findall(s)
+    cjk_len = 0
+    asc_len = 0
+    for w in splitted:
+        if ord(w[0]) >= 12352:  # \u3040
+            cjk_len += len(w)
+        else:
+            asc_len += 1
+    return (cjk_len, asc_len)
 
 
 if __name__ == '__main__':
