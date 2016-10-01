@@ -120,7 +120,8 @@ def parse_book_info(book_info_url, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_p
 
 
 @app.task(max_retries=10, default_retry_delay=5)
-def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEOUT, use_proxy=USE_PROXY, retries=0,
+def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEOUT,
+                  use_proxy=USE_PROXY, retries=0,
                   **kwargs):
     if not local_filename:
         local_filename = url.split('/')[-1]
@@ -138,9 +139,10 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
                     if chunk:  # filter out keep-alive new chunks
                         f.write(chunk)
                 logging.info("Finish download %s", url)
+                kwargs['set_download_finish'] = True
                 tasks_schedule.delay(task_url=url, task_type="set_repeate", **kwargs)
                 r.close()
-                return True
+                return "Finish download %s" % fname
         else:
             logging.error("Error: Unexpected response {}".format(r))
             raise
@@ -148,7 +150,7 @@ def download_file(url, local_filename=None, proxies=None, timeout=DOWNLOAD_TIMEO
         logging.error(e)
         download_file.retry(args=[url, fname, proxies, timeout,
                                   use_proxy, download_file.request.retries + 1],
-                            exc=e, kwargs=kwargs)
+                            exc=e, countdown=int(random.uniform(2, 10)), **kwargs)
     return True
 
 
@@ -194,6 +196,10 @@ def tasks_schedule(task_url, task_type, **kwargs):
     elif task_type == 'set_repeate':
         logging.info('set_repeate:%s', task_url)
         set_repeate(r, task_url, DUPLICATION_KEY)
+        if 'set_download_finish' in kwargs.keys():
+            record = session.query(NetBook).filter(NetBook.download_url == task_url).one()
+            record.download_flag = True
+
     session.commit()
     Session.remove()
     return "tasks_schedule---type:%s url: %s" % (task_type, task_url)
