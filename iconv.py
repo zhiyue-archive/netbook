@@ -1,17 +1,16 @@
 # !/usr/bin/python
 # -*- encoding:utf-8 -*-
 
-import chardet
 import codecs
-from multiprocessing.dummy import Pool
-from multiprocessing import cpu_count
 import os
+import sys
 import time
-import io
+from multiprocessing import cpu_count
+from multiprocessing.dummy import Pool
+
+import chardet
 from tqdm import tqdm
 
-
-import sys
 reload(sys)
 sys.setdefaultencoding('UTF-8')
 
@@ -19,17 +18,22 @@ sys.setdefaultencoding('UTF-8')
 def detect_file_encoding(file_path):
     """ 返回文件的编码 """
     f = open(file_path, 'r')
-    data = f.read()
-    predict =  chardet.detect(data)
+    data = f.read(100)
+    predict = chardet.detect(data)
     f.close()
+    if not predict['encoding']:
+        predict['encoding'] = 'gbk'
+    elif predict['encoding'] == 'windows-1252':
+        predict['encoding'] = 'gbk'
+    elif predict['encoding'] == 'ascii':
+        predict['encoding'] = 'gbk'
     return predict['encoding']
 
 
-def get_file_content(file_path):
+def get_file_content(file_path, file_encoding=None):
     """ 获取文件内容，最终为utf-8 """
-    file_encoding = detect_file_encoding(file_path)
-    if file_encoding is None:
-        return ''
+    if not file_encoding:
+        file_encoding = detect_file_encoding(file_path)
     f = codecs.open(file_path, 'r', file_encoding, errors="ignore")
     data = f.read()
     f.close()
@@ -76,7 +80,12 @@ def translate_dir(dir_path):
 
 def translate_file(file_path):
     start = time.clock()
-    content = get_file_content(file_path)
+    file_encoding = detect_file_encoding(file_path)
+
+    # jump encoding of utf-8
+    if file_encoding == 'utf-8':
+        return time.clock() - start
+    content = get_file_content(file_path, file_encoding)
     del_file(file_path)
     write2file(content, file_path)
     return time.clock() - start
@@ -105,29 +114,29 @@ def count_encoding_none(dir_path):
 
 
 if __name__ == '__main__':
-    # dir_path = 'txt'
-    # base_file_names = os.listdir(dir_path)
-    # file_paths = [os.path.join(dir_path, base_name) for base_name in base_file_names]
-    #
-    # cpus = cpu_count()
-    # pool = Pool(processes=cpus)
-    # it = pool.imap_unordered(mp_translate_file, file_paths, chunksize=5)
-    # for filename, result, error in tqdm(it):
-    #     if error is not None:
-    #         print filename, error
-    #         print '\n'
-    #     else:
-    #         print filename, result
-    #         print '\n'
+    dir_path = 'txt'
+    base_file_names = os.listdir(dir_path)
+    file_paths = [os.path.join(dir_path, base_name) for base_name in base_file_names]
+
+    cpus = cpu_count()
+    pool = Pool(processes=cpus)
+    it = pool.imap_unordered(mp_translate_file, file_paths, chunksize=5)
+    for filename, result, error in tqdm(it):
+        if error is not None:
+            print filename, error
+            print '\n'
+        else:
+            print filename, result
+            print '\n'
 
     # print detect_file_encoding('tests/txt/23001.txt')
     # f = io.open('tests/txt/23001.txt', 'r', encoding='GB2312', errors='ignore')
 
-    f = codecs.open('tests/txt/23001.txt', 'r', 'GB2312', )
-    line = ''
-    while line is not None:
-        print line
-        line = f.readline()
+            # predict = chardet.detect(open('tests/test.txt', 'r').read(100))['encoding']
+            # print predict
+            # f = codecs.open('txt/1.txt', 'r', 'gbk', errors='ignore')
+
+            # print f.read()
 
     # pool.close()
     # pool.join()
