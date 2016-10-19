@@ -255,5 +255,9 @@ def caculateWords(s, encoding='utf-8'):
     return (cjk_len, asc_len)
 
 
+def get_txt_chars(file_path):
+    visible_chars = re.sub(r'\s+', '', file_path, flags=re.UNICODE)
+    print len(visible_chars)
+
 if __name__ == '__main__':
     download_file(u"http://dzs.qisuu.com/txt/我的农场在沙漠.txt")

@@ -3,6 +3,7 @@
 """
 
 """
+import logging
 from gensim.corpora import Dictionary
 from gensim.corpora import MmCorpus
 from preprocessing import TxtCorpus
@@ -18,6 +19,7 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 class TxtSimilar(object):
     def __init__(self, save_path, index_path='index/netbook', num_best=20):
@@ -62,3 +64,20 @@ class TxtSimilar(object):
         else:
             return corpus, dictionary, labels, models.TfidfModel(dictionary=dictionary)
 
+
+
+if __name__ == '__main__':
+    similarities_index = similarities.Similarity.load('data/similarities_index.0')
+    similarities_index.num_best = 20
+    labels = TxtCorpus.load_labels('data/corpus.labels')
+    with open("txt_index.txt", 'w') as fw:
+        for doc_index, similarities in enumerate(similarities_index):
+            similarities = sorted(similarities, key=lambda item: -item[1])[1:]
+            # print "similar to doc: %s" % labels[doc_index]
+            logging.info("%s / %s", doc_index, len(labels))
+            fw.write("similar to doc: %s" % labels[doc_index] + "\n")
+            for sim_index, sim in similarities:
+                # print labels[sim_index], str(round(sim*100, 3))+'%'
+                fw.write(labels[sim_index] + "," + str(round(sim * 100, 3)) + '% ' + "\n")
+            fw.write("\n")
+            fw.flush()

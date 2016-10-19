@@ -202,6 +202,7 @@ def download_fail_download_books():
 # download_file.delay("http://dzs.qisuu.com/txt/26.txt")
 
 if __name__ == '__main__':
+    # todo: add paramerers to run
     # sync_redis_repeat_books_info_urls()
     sync_book_download_status(u'txt')
     sync_redis_repeat_download_books(u"txt")
