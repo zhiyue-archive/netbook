@@ -27,14 +27,6 @@ def filter_stop_words(cut_word_list, stop_words):
     return seg_list
 
 
-def cut_txt_content(content):
-    """Chinese word segmentation
-    :param content:Chinese text content
-    :return: a list of segments
-    """
-    return jieba.cut(content)
-
-
 def load_stop_words(filename):
     """ load dictionary file.
 
@@ -50,48 +42,36 @@ def load_stop_words(filename):
 
 class TxtCorpus(object):
 
-    stop_words = load_stop_words('dict/all_stopword.txt')
+    stop_words = load_stop_words(os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                              os.pardir, "data", "dict", "all_stopword.txt")))
 
-    def __init__(self, txts_path):
+    def __init__(self, path, use_mm=False):
         self.dictionary = Dictionary()
-        self.dir_path = txts_path
-        self.label_names = os.listdir(txts_path)
+        self.dir_path = path
+        self.label_names = os.listdir(path)
+        self.use_mm = use_mm
 
     def __iter__(self):
         file_paths = [os.path.join(self.dir_path, base_name) for base_name in self.label_names]
         file_count = len(file_paths)
-        for index_num, txt_path in enumerate(file_paths):
-            logging.info("%i/%i,%s", index_num, file_count, txt_path)
-            doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path), allow_update=True)
-            yield doc
-
-    @staticmethod
-    def processed_txt(filename):
-        content = TxtCorpus.load_txt(filename)
-        words = cut_txt_content(content)
-        segments = filter_stop_words(words, TxtCorpus.stop_words)
-        return segments
-
-    @staticmethod
-    def load_stop_words(filename):
-        with open(filename, 'r') as f:
-            stop_words = set()
-            for line in f.readlines():
-                stop_words.add(line.decode('utf-8').strip())
-            return stop_words
+        if self.use_mm:
+                corpus, self.dictionary, self.label_names = TxtCorpus.load(self.dir_path)
+                for index_num, doc in enumerate(corpus):
+                    logging.info("%i/%i,%s", index_num, file_count, self.label_names[index_num])
+                    yield doc
+        else:
+            for index_num, txt_path in enumerate(file_paths):
+                logging.info("%i/%i,%s", index_num, file_count, txt_path)
+                doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path), allow_update=True)
+                yield doc
 
     def save_labels(self, path):
         with open(path, 'w') as fw:
             for line in self.label_names:
                 fw.write(line + '\n')
 
-    @staticmethod
-    def load_labels(path):
-        labels = list()
-        with open(path, 'r') as f:
-            for line in f.readlines():
-                labels.append(line.strip())
-        return labels
+    def serialize(self, path):
+        TxtCorpus.save(self, path)
 
     @staticmethod
     def load_txt(filename, encoding='utf8'):
@@ -111,35 +91,66 @@ class TxtCorpus(object):
             logging.warn("parse %s use %s fail", filename, encoding)
             raise UnicodeDecodeError
 
+    @staticmethod
+    def processed_txt(filename):
+        content = TxtCorpus.load_txt(filename)
+        words = TxtCorpus.cut_txt_content(content)
+        segments = filter_stop_words(words, TxtCorpus.stop_words)
+        return segments
 
-def load(save_path):
-    dict_path = os.path.join(save_path, 'corpus.dict')
-    mm_path = os.path.join(save_path, 'corpus.mm')
-    labels_path = os.path.join(save_path, 'corpus.labels')
-    logging.info("loading corpus")
-    corpus = MmCorpus(mm_path)
-    logging.info("loading dictionary")
-    dictionary = Dictionary.load(dict_path)
-    logging.info("loading labels")
-    labels = TxtCorpus.load_labels(labels_path)
-    return corpus, dictionary, labels
+    @staticmethod
+    def load_stop_words(filename):
+        with open(filename, 'r') as f:
+            stop_words = set()
+            for line in f.readlines():
+                stop_words.add(line.decode('utf-8').strip())
+            return stop_words
 
+    @staticmethod
+    def load_labels(path):
+        labels = list()
+        with open(path, 'r') as f:
+            for line in f.readlines():
+                labels.append(line.strip())
+        return labels
 
-def save(corpus, save_path):
-    dict_path = os.path.join(save_path, 'corpus.dict')
-    mm_path = os.path.join(save_path, 'corpus.mm')
-    labels_path = os.path.join(save_path, 'corpus.labels')
-    MmCorpus.serialize(mm_path, corpus)
-    corpus.save_labels(labels_path)
-    corpus.dictionary.save(dict_path)
+    @staticmethod
+    def save(corpus, save_path):
+        dict_path = os.path.join(save_path, 'corpus.dict')
+        mm_path = os.path.join(save_path, 'corpus.mm')
+        labels_path = os.path.join(save_path, 'corpus.labels')
+        MmCorpus.serialize(mm_path, corpus)
+        corpus.save_labels(labels_path)
+        corpus.dictionary.save(dict_path)
+
+    @staticmethod
+    def load(save_path):
+        dict_path = os.path.join(save_path, 'corpus.dict')
+        mm_path = os.path.join(save_path, 'corpus.mm')
+        labels_path = os.path.join(save_path, 'corpus.labels')
+        logging.info("loading corpus")
+        corpus = MmCorpus(mm_path)
+        logging.info("loading dictionary")
+        dictionary = Dictionary.load(dict_path)
+        logging.info("loading labels")
+        labels = TxtCorpus.load_labels(labels_path)
+        return corpus, dictionary, labels
+
+    @staticmethod
+    def cut_txt_content(content):
+        """Chinese word segmentation
+        :param content:Chinese text content
+        :return: a list of segments
+        """
+        return jieba.cut(content)
 
 
 if __name__ == '__main__':
 
     corpus_memory_friendly = TxtCorpus('txt/')
-    save(corpus_memory_friendly, 'data')
+    TxtCorpus.save(corpus_memory_friendly, 'data')
     logging.info("init corpus.mm")
-    corpus, dictionary, labels = load('data')
+    corpus, dictionary, labels = TxtCorpus.load('data')
     logging.info("init tfidf model")
     tfidf = tfidfmodel.TfidfModel(dictionary=dictionary)
     logging.info("trans corpus to tfidf")
