@@ -75,10 +75,10 @@ class TxtCorpus(object):
 
     @staticmethod
     def load_txt(filename, encoding='utf8'):
-        encodings = ['gbk', 'gb2312', 'utf8', 'utf-8']
+        encodings = ['gbk', 'gb2312', 'utf8', 'utf-8', 'UTF-8-SIG']
         with open(filename, 'r') as f:
             predict = chardet.detect(f.read(100))
-
+        print predict['encoding']
         if predict['encoding'] not in encodings:
             encoding = 'gbk'
         else:
@@ -146,17 +146,18 @@ class TxtCorpus(object):
 
 
 if __name__ == '__main__':
-
-    corpus_memory_friendly = TxtCorpus('txt/')
-    TxtCorpus.save(corpus_memory_friendly, 'data')
+    test_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "test_data"))
+    mm_corpus_path = os.path.join(test_data_dir, "corpus_mm")
+    corpus_memory_friendly = TxtCorpus(os.path.join(test_data_dir, "small_txt"))
+    TxtCorpus.save(corpus_memory_friendly, mm_corpus_path)
     logging.info("init corpus.mm")
-    corpus, dictionary, labels = TxtCorpus.load('data')
+    corpus, dictionary, labels = TxtCorpus.load(mm_corpus_path)
     logging.info("init tfidf model")
     tfidf = tfidfmodel.TfidfModel(dictionary=dictionary)
     logging.info("trans corpus to tfidf")
     corpus_tfidf = tfidf[corpus]
     logging.info("saving tfidf corpus.")
-    MmCorpus.serialize("data/corpus_tfidf.mm", corpus)
+    MmCorpus.serialize(os.path.join(mm_corpus_path, "mm_corpus.tfidf"), corpus_tfidf)
 
     # logging.info("build similarities_index")
     # similarities_index = similarities.Similarity('data/similarities_index', corpus_tfidf, num_features=len(dictionary), num_best=20)
