@@ -57,7 +57,12 @@ class Recommend(Base):
     __tablename__ = 'recommend'
 
     name = Column(String, primary_key=True)
+    author = Column(String, primary_key=True)
     file_name = Column(String)
+    similar_book_name = Column(String)
+    similar_file_name = Column(String)
+    similar_book_author = Column(String)
+    similar_book_wordcount = Column(Integer)
     similarity = Column(Float)
     model = Column(String, primary_key=True)
     range = Column(Integer, primary_key=True)
