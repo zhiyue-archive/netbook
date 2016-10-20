@@ -21,6 +21,7 @@ __status__ = "Production"
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
+
 class TxtSimilar(object):
     def __init__(self, save_path, index_path='index/netbook', num_best=20):
         self.corpus, self.dictionary, self.labels, self.tfidf = TxtSimilar._load(save_path)
@@ -63,7 +64,6 @@ class TxtSimilar(object):
             return corpus, dictionary, labels, TxtSimilar.load_tfidf_module(tfidf_module)
         else:
             return corpus, dictionary, labels, models.TfidfModel(dictionary=dictionary)
-
 
 
 if __name__ == '__main__':

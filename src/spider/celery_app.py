@@ -4,6 +4,8 @@ from __future__ import absolute_import
 """
 
 """
+from celery import Celery
+
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
 __credits__ = ["zhiyue"]
@@ -13,8 +15,6 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
-
-from celery import Celery
 
 app = Celery('netbook', include=['tasks'])
 

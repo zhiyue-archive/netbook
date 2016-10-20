@@ -6,13 +6,13 @@ import requests
 import logging
 import random
 from config import *
-from utils import getproxy, check_repeate, set_repeate
+from src.utils import getproxy, check_repeate, set_repeate
 from sqlalchemy import create_engine
 from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from config import DB_URI
-from database import NetBook
+from src.database import NetBook
 import redis
 
 try:

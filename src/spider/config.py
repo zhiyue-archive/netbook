@@ -11,6 +11,7 @@ DUPLICATION_KEY = 'netbook:task_remove_repeate'
 BOOK_INFO_INDEX_PER_PAGE_NUM = 15
 
 # dowdload proxy config
+# todo: use sqlite3 instead of redis
 USE_PROXY = True
 PROXY_KEY = "ipproxy:1"
 DOWNLOAD_TIMEOUT = 20
@@ -25,6 +26,7 @@ REDIS_DB = 0
 DB_URI = "sqlite:///netbook.db"
 DB_POOL_SIZE = 20
 # ----------------------------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------------------------
 # celery config
