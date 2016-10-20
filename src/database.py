@@ -8,7 +8,7 @@ from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.scoping import scoped_session
-from config import DB_URI
+from .spider.config import DB_URI
 
 
 __author__ = 'zhiyue'
@@ -51,6 +51,17 @@ class Category(Base):
 
     name = Column(String, primary_key=True)
     count = Column(Integer)
+
+
+class Recommend(Base):
+    __tablename__ = 'recommend'
+
+    name = Column(String, primary_key=True)
+    file_name = Column(String)
+    similarity = Column(Float)
+    model = Column(String, primary_key=True)
+    range = Column(Integer, primary_key=True)
+
 
 if __name__ == '__main__':
     engine = create_engine(DB_URI, echo=True)
