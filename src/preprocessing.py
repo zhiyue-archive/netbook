@@ -1,6 +1,7 @@
 # !/usr/bin/python
 # -*- encoding:utf-8 -*-
 
+import argparse
 import io
 import logging
 import os
@@ -12,6 +13,7 @@ from gensim import similarities
 from gensim.corpora import Dictionary
 from gensim.corpora import MmCorpus
 from gensim.models import tfidfmodel
+
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
@@ -40,15 +42,32 @@ def load_stop_words(filename):
         return stop_words
 
 
+def iter_documents(top_directory):
+    """Iterate over all documents, yielding a document (=list of utf8 tokens) at a time."""
+    file_list = filter(lambda file_name: file_name.endswith('.txt'), os.listdir(top_directory))
+    file_num = len(file_list)
+    for index, file_name in enumerate(file_list):
+            logging.info("dict init %i/%i: %s", index, file_num, file_name)
+            yield TxtCorpus.processed_txt(os.path.join(top_directory, file_name))
+
+
 class TxtCorpus(object):
 
     stop_words = load_stop_words(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                               os.pardir, "data", "dict", "all_stopword.txt")))
 
     def __init__(self, path, use_mm=False):
-        self.dictionary = Dictionary()
+        logging.info("init dict...")
+        self.dictionary = Dictionary(iter_documents(path))
+        self.dictionary.filter_extremes(no_below=1, no_above=0.5, keep_n=1000000)
+        self.dictionary.compactify()
+        logging.info("finish init dict.")
+        print self.dictionary
         self.dir_path = path
-        self.label_names = os.listdir(path)
+        if not use_mm:
+            self.label_names = filter(lambda file_name: file_name.endswith('.txt'), os.listdir(path)) # Filter non-txt suffix files
+        else:
+            self.label_names = TxtCorpus.load_labels(os.path.join(path, 'corpus.labels'))
         self.use_mm = use_mm
 
     def __iter__(self):
@@ -62,7 +81,7 @@ class TxtCorpus(object):
         else:
             for index_num, txt_path in enumerate(file_paths):
                 logging.info("%i/%i,%s", index_num, file_count, txt_path)
-                doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path), allow_update=True)
+                doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path))
                 yield doc
 
     def save_labels(self, path):
@@ -146,9 +165,20 @@ class TxtCorpus(object):
 
 
 if __name__ == '__main__':
-    test_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "test_data"))
-    mm_corpus_path = os.path.join(test_data_dir, "corpus_mm")
-    corpus_memory_friendly = TxtCorpus(os.path.join(test_data_dir, "small_txt"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", "-s", help="The path to the file")
+    parser.add_argument("--destination", "-d", help="The path to store the result")
+    args = parser.parse_args()
+    data_dir = args.source
+    save_dir = args.destination
+    if not os.path.isdir(data_dir):
+        os.mkdir(data_dir)
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+
+    #test_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "tests", "test_data"))
+    mm_corpus_path = os.path.join(save_dir)
+    corpus_memory_friendly = TxtCorpus(data_dir)
     TxtCorpus.save(corpus_memory_friendly, mm_corpus_path)
     logging.info("init corpus.mm")
     corpus, dictionary, labels = TxtCorpus.load(mm_corpus_path)
@@ -159,6 +189,5 @@ if __name__ == '__main__':
     logging.info("saving tfidf corpus.")
     MmCorpus.serialize(os.path.join(mm_corpus_path, "mm_corpus.tfidf"), corpus_tfidf)
 
-    # logging.info("build similarities_index")
-    # similarities_index = similarities.Similarity('data/similarities_index', corpus_tfidf, num_features=len(dictionary), num_best=20)
+
 
