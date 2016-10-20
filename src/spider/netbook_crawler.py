@@ -7,13 +7,13 @@ import os
 import cPickle as pickle
 from tasks import parse_category_url, tasks_schedule, parse_book_url
 from config import REDIS_PORT, REDIS_DB, REDIS_HOST, DUPLICATION_KEY
-from utils import set_batch_repeate, del_batch_hash_value_in_redis_repeate_set
+from ..utils import set_batch_repeate, del_batch_hash_value_in_redis_repeate_set
 from sqlalchemy import create_engine
 from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
-from database import NetBook, Category
+from ..database import NetBook, Category
 import redis
 import requests
 import logging
