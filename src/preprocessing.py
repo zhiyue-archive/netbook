@@ -51,18 +51,36 @@ def iter_documents(top_directory):
             yield TxtCorpus.processed_txt(os.path.join(top_directory, file_name))
 
 
+def filter_dicitonary_and_corpus(old_path, new_path, keep_n=1000000, no_below=5, no_above=0.5, old_dict_name="corpus.dict", old_corpus_name="corpus.mm"):
+    import copy
+    from gensim.models import VocabTransform
+
+    # filter the dictionary
+    old_dict = Dictionary.load(os.path.join(old_path, old_dict_name))
+    new_dict = copy.deepcopy(old_dict)
+    new_dict.filter_extremes(keep_n=keep_n, no_below=no_below, no_above=no_above)
+    new_dict.save(os.path.join(new_path, "filtered_keep_n-%s_no_below-%s_no_above-%s_corpus.dict") % (keep_n, no_below, no_above))
+
+    # now transform the corpus
+    corpus = MmCorpus(os.path.join(old_path, old_corpus_name))
+    old2new = {old_dict.token2id[token]: new_id for new_id, token in new_dict.iteritems()}
+    vt = VocabTransform(old2new)
+    new_corpus_path = os.path.join(new_path, "filtered_keep_n-%s_no_below-%s_no_above-%s_corpus.mm" % (keep_n, no_below, no_above))
+    MmCorpus.serialize(new_corpus_path, vt[corpus], id2word=new_dict)
+
+
 class TxtCorpus(object):
 
     stop_words = load_stop_words(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                               os.pardir, "data", "dict", "all_stopword.txt")))
 
     def __init__(self, path, use_mm=False):
-        logging.info("init dict...")
-        self.dictionary = Dictionary(iter_documents(path))
-        self.dictionary.filter_extremes(no_below=1, no_above=0.5, keep_n=1000000)
-        self.dictionary.compactify()
-        logging.info("finish init dict.")
-        print self.dictionary
+        # logging.info("init dict...")
+        # self.dictionary = Dictionary(iter_documents(path))
+        # self.dictionary.filter_extremes(no_below=5, no_above=0.5, keep_n=1000000)
+        # self.dictionary.compactify()
+        # logging.info("finish init dict.")
+        self.dictionary = Dictionary()
         self.dir_path = path
         if not use_mm:
             self.label_names = filter(lambda file_name: file_name.endswith('.txt'), os.listdir(path)) # Filter non-txt suffix files
@@ -81,11 +99,11 @@ class TxtCorpus(object):
         else:
             for index_num, txt_path in enumerate(file_paths):
                 logging.info("%i/%i,%s", index_num, file_count, txt_path)
-                doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path))
+                doc = self.dictionary.doc2bow(TxtCorpus.processed_txt(txt_path), allow_update=True)
                 yield doc
 
     def save_labels(self, path):
-        with open(path, 'w') as fw:
+        with io.open(path, 'w',encoding='utf-8') as fw:
             for line in self.label_names:
                 fw.write(line + '\n')
 
@@ -128,7 +146,7 @@ class TxtCorpus(object):
     @staticmethod
     def load_labels(path):
         labels = list()
-        with open(path, 'r') as f:
+        with io.open(path, 'r', encoding='utf-8') as f:
             for line in f.readlines():
                 labels.append(line.strip())
         return labels
