@@ -3,6 +3,10 @@
 """
 
 """
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from .spider.config import DB_URI
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -13,10 +17,6 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from .spider.config import DB_URI
 
 engine = create_engine(DB_URI, convert_unicode=True)
 db_session = scoped_session(sessionmaker(autocommit=False,
@@ -24,6 +24,7 @@ db_session = scoped_session(sessionmaker(autocommit=False,
                                          bind=engine))
 Base = declarative_base()
 Base.query = db_session.query_property()
+
 
 def init_db():
     # 在这里导入所有的可能与定义模型有关的模块，这样他们才会合适地

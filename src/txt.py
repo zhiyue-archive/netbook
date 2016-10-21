@@ -9,6 +9,7 @@ import re
 import os
 import jieba
 import jieba.analyse
+
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
 __credits__ = ["zhiyue"]

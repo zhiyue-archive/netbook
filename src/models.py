@@ -5,10 +5,8 @@
 """
 import logging
 from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.scoping import scoped_session
 from .spider.config import DB_URI
+from src.database import Base
 
 
 __author__ = 'zhiyue'
@@ -25,12 +23,8 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
-
-engine = create_engine(DB_URI)
-DB_Session = sessionmaker(bind=engine)
-
 # todo : restruct module to modle.py
+
 
 class NetBook(Base):
     __tablename__ = 'book'
@@ -71,7 +65,5 @@ class Recommend(Base):
 
 if __name__ == '__main__':
     engine = create_engine(DB_URI, echo=True)
-
-    #Base.metadata.drop_all(bind=engine)
+    # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-
