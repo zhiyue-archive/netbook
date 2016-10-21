@@ -45,8 +45,6 @@ class Txt(object):
         tags_str = u"/".join(self.tags)
         return u"filename:%s,encoding:%s,word_count:%s,tags:%s" % (self.file_name, self.encoding, self.word_count, tags_str)
 
-
-
 if __name__ == '__main__':
     txt = Txt(r"E:\repos\workspace\netbook\tests\test_data\small_txt\21891.txt")
     txt

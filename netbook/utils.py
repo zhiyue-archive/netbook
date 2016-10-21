@@ -240,7 +240,7 @@ def set_batch_repeate(r, check_str_list, set_name):
     pipe.execute()
 
 
-def caculateWords(s, encoding='utf-8'):
+def caculate_words(s, encoding='utf-8'):
     rx = re.compile(u"[a-zA-Z0-9_\u0392-\u03c9]+|[\u4E00-\u9FFF\u3400-\u4dbf\uf900-\ufaff\u3040-\u309f\uac00-\ud7af]+",
                     re.UNICODE)
     if type(s) is StringType:  # not unicode
@@ -254,7 +254,7 @@ def caculateWords(s, encoding='utf-8'):
             cjk_len += len(w)
         else:
             asc_len += 1
-    return (cjk_len, asc_len)
+    return cjk_len, asc_len
 
 
 def get_txt_chars(file_path):
