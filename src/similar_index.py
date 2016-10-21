@@ -10,12 +10,13 @@ from gensim.corpora import MmCorpus
 from preprocessing import TxtCorpus
 import os
 from gensim import corpora, models, similarities
+from gensim.similarities import Similarity
 from sqlalchemy import create_engine
 from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-from .spider.config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
-from .database import NetBook, Category, Recommend
+from src.spider.config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
+from src.database import NetBook, Category, Recommend
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -53,11 +54,11 @@ class TxtSimilar(object):
         for doc_index, similarities in enumerate(self.similarities_index):
 
             similarities = sorted(similarities, key=lambda item: -item[1])[1:]
-            file_name = self.labels[doc_index]
+            file_name = self.labels[doc_index].decode('utf8')
             book_info = session.query(NetBook).filter(NetBook.file_name == file_name).first()
             range_index = 1
             for sim_index, sim in similarities:
-                similar_book_info = session.query(NetBook).filter(NetBook.file_name == self.labels[sim_index]).first()
+                similar_book_info = session.query(NetBook).filter(NetBook.file_name == self.labels[sim_index].decode('utf8')).first()
                 recommend_record = dict()
                 recommend_record['name'] = book_info.name
                 recommend_record['author'] = book_info.author
@@ -67,7 +68,40 @@ class TxtSimilar(object):
                 recommend_record['similar_book_author'] = similar_book_info.author
                 recommend_record['similar_book_wordcount'] = similar_book_info.word_count
                 recommend_record['similarity'] = sim
-                recommend_record['model'] = 'tfidf'
+                recommend_record['model'] = u'tfidf'
+                recommend_record['range'] = range_index
+                range_index += 1
+
+                new_recommend = Recommend(**recommend_record)
+                session.merge(new_recommend)
+                session.commit()
+        Session.remove()
+
+    def update_lsi_index(self, indexs=None):
+        Session = scoped_session(session_factory)
+        session = Session()
+        if indexs is None:
+            lsi = models.LsiModel(self.corpus, id2word=self.dictionary, num_topics=500)
+            lsi.show_topics(num_topics=100,num_words=20,log=True)
+            lsi.save("lsi.model")
+            indexs = Similarity("tfidf_index", lsi[self.corpus], num_features=500, num_best=20)
+        for doc_index, similarities in enumerate(indexs):
+            similarities = sorted(similarities, key=lambda item: -item[1])[1:]
+            file_name = self.labels[doc_index].decode('utf8')
+            book_info = session.query(NetBook).filter(NetBook.file_name == file_name).first()
+            range_index = 1
+            for sim_index, sim in similarities:
+                similar_book_info = session.query(NetBook).filter(NetBook.file_name == self.labels[sim_index].decode('utf8')).first()
+                recommend_record = dict()
+                recommend_record['name'] = book_info.name
+                recommend_record['author'] = book_info.author
+                recommend_record["file_name"] = book_info.file_name
+                recommend_record['similar_book_name'] = similar_book_info.name
+                recommend_record['similar_file_name'] = similar_book_info.file_name
+                recommend_record['similar_book_author'] = similar_book_info.author
+                recommend_record['similar_book_wordcount'] = similar_book_info.word_count
+                recommend_record['similarity'] = sim
+                recommend_record['model'] = u'lsi'
                 recommend_record['range'] = range_index
                 range_index += 1
 
@@ -120,7 +154,8 @@ if __name__ == '__main__':
     logging.info("init TxtSimilar")
     txt_similar = TxtSimilar(corpus_dir, index_path=index_dir)
     logging.info("update index to database...")
-    txt_similar.update_index_to_db()
+    txt_similar.update_lsi_index()
+    # txt_similar.update_index_to_db()
     # similarities_index = txt_similar.similarities_index
     # labels = txt_similar.labels
 
