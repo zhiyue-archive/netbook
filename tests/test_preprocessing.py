@@ -5,7 +5,7 @@
 """
 import os
 import shutil
-from src.preprocessing import TxtCorpus, filter_dicitonary_and_corpus
+from netbook.preprocessing import TxtCorpus, filter_dicitonary_and_corpus
 import unittest
 
 from gensim.corpora import Dictionary
