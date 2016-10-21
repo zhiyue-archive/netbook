@@ -1,0 +1,1 @@
+python E:/repos/workspace/netbook/src/preprocessing.py -s E:/repos/workspace/netbook/tests/test_data/large_txt -d E:/repos/workspace/netbook/data/corpus_mm/small
