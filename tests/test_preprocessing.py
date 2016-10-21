@@ -4,8 +4,12 @@
 
 """
 import os
-from src.preprocessing import TxtCorpus
+import shutil
+from src.preprocessing import TxtCorpus, filter_dicitonary_and_corpus
 import unittest
+
+from gensim.corpora import Dictionary
+from gensim.corpora import MmCorpus
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -100,9 +104,20 @@ class TestTxtCorpus(unittest.TestCase):
         os.remove(mm_index_path)
         os.remove(labels_path)
 
-    def test_mm_iter(self):
-        for index, doc in enumerate(self.mm_corpus):
-            print doc
+    def test_filter_dicitonary_and_corpus(self):
+        corpus_dir = os.path.join(test_data_dir, "corpus_mm")
+        filter_dir = os.path.join(test_data_dir, "filter_corpus")
+        if not os.path.isdir(filter_dir):
+            os.mkdir(filter_dir)
+        filter_dicitonary_and_corpus(corpus_dir, filter_dir, keep_n=100, no_above=1, no_below=0)
+        old_corpus = MmCorpus(os.path.join(corpus_dir, "corpus.mm"))
+        new_corpus_name = "filtered_keep_n-%s_no_below-%s_no_above-%s_corpus.mm" % (100, 0, 1)
+        new_corpus = MmCorpus(os.path.join(filter_dir, new_corpus_name))
+        print "old:num_terms:%s, non-zero-entries:%s; new: num_terms:%s, non-zero-entries:%s"\
+              % (old_corpus.num_terms, old_corpus.num_nnz, new_corpus.num_terms, new_corpus.num_nnz)
+        self.assertGreaterEqual(old_corpus.num_terms, new_corpus.num_terms)
+        self.assertGreaterEqual(old_corpus.num_nnz, new_corpus.num_nnz)
+        shutil.rmtree(filter_dir)
 
     def tearDown(self):
         pass
