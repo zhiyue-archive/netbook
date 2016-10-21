@@ -97,7 +97,6 @@
                 }
                 $.getJSON('http://127.0.0.1:5000/api/netbook/recommend?key=' + v.$data.key + '&model=tfidf', function (data) {
                     v.$data.books = JSON.parse(data.similarity_books)
-                    v.$data.books.shift()
                     localStorage.key = v.$data.key
                 }).fail(function () {
                     alert(v.$data.key + " 未找到相应书籍，请尝试其他书籍")
