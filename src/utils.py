@@ -14,9 +14,11 @@ import random
 import functools
 import redis
 import hashlib
-from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+import chardet
+from src.spider.config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from types import StringType
 import re
+import io
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -256,9 +258,12 @@ def caculateWords(s, encoding='utf-8'):
 
 
 def get_txt_chars(file_path):
-    visible_chars = re.sub(r'\s+', '', file_path, flags=re.UNICODE)
-    print len(visible_chars)
-    return len(visible_chars)
+    predict = chardet.detect(open(file_path, 'r').read(100))['encoding']
+    with io.open(file_path, 'r', encoding=predict, errors='ignore') as fr:
+        content = fr.read()
+        visible_chars = re.sub(r'\s+', '', content, flags=re.UNICODE)
+        print len(visible_chars)
+        return len(visible_chars)
 
 
 if __name__ == '__main__':
