@@ -12,7 +12,7 @@ from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from config import DB_URI
-from src.database import NetBook
+from src.models import NetBook
 import redis
 
 try:

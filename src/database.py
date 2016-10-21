@@ -3,13 +3,6 @@
 """
 
 """
-import logging
-from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.scoping import scoped_session
-from .spider.config import DB_URI
-
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -20,57 +13,21 @@ __maintainer__ = "zhiyue"
 __email__ = "cszhiyue@gmail.com"
 __status__ = "Production"
 
-logging.basicConfig(level=logging.INFO,
-                    format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
-                    datefmt='%H:%M:%S')
-logger = logging.getLogger(__name__)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from .spider.config import DB_URI
 
+engine = create_engine(DB_URI, convert_unicode=True)
+db_session = scoped_session(sessionmaker(autocommit=False,
+                                         autoflush=False,
+                                         bind=engine))
 Base = declarative_base()
+Base.query = db_session.query_property()
 
-engine = create_engine(DB_URI)
-DB_Session = sessionmaker(bind=engine)
-
-
-class NetBook(Base):
-    __tablename__ = 'book'
-
-    info_url = Column(String, primary_key=True)
-    name = Column(String)
-    file_name = Column(String)
-    author = Column(String)
-    rate = Column(Float)
-    tag = Column(String)
-    category = Column(String)
-    download_url = Column(String)
-    word_count = Column(Integer)
-    download_flag = Column(Boolean)
-
-
-class Category(Base):
-    __tablename__ = 'category'
-
-    name = Column(String, primary_key=True)
-    count = Column(Integer)
-
-
-class Recommend(Base):
-    __tablename__ = 'recommend'
-
-    name = Column(String, primary_key=True)
-    author = Column(String, primary_key=True)
-    file_name = Column(String)
-    similar_book_name = Column(String)
-    similar_file_name = Column(String)
-    similar_book_author = Column(String)
-    similar_book_wordcount = Column(Integer)
-    similarity = Column(Float)
-    model = Column(String, primary_key=True)
-    range = Column(Integer, primary_key=True)
-
-
-if __name__ == '__main__':
-    engine = create_engine(DB_URI, echo=True)
-
-    #Base.metadata.drop_all(bind=engine)
+def init_db():
+    # 在这里导入所有的可能与定义模型有关的模块，这样他们才会合适地
+    # 在 metadata 中注册。否则，您将不得不在第一次执行 init_db() 时
+    # 先导入他们。
+    import src.models
     Base.metadata.create_all(bind=engine)
-

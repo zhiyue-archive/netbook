@@ -48,4 +48,4 @@ class Txt(object):
 
 if __name__ == '__main__':
     txt = Txt(r"E:\repos\workspace\netbook\tests\test_data\small_txt\21891.txt")
-    print txt
+    txt

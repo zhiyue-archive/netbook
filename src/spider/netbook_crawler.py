@@ -13,7 +13,7 @@ from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
-from ..database import NetBook, Category
+from ..models import NetBook, Category
 import redis
 import requests
 import logging
