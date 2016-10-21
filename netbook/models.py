@@ -6,7 +6,7 @@
 import logging
 from sqlalchemy import Column, String, create_engine, Integer, Float, Boolean
 from .spider.config import DB_URI
-from src.database import Base
+from netbook.database import Base
 
 
 __author__ = 'zhiyue'

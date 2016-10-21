@@ -15,8 +15,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-from src.spider.config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
-from src.models import NetBook, Category, Recommend
+from netbook.spider.config import DB_URI, BOOK_INFO_INDEX_PER_PAGE_NUM
+from netbook.models import NetBook, Category, Recommend
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -31,8 +31,6 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 engine = create_engine(DB_URI, poolclass=SingletonThreadPool, pool_size=20)
 session_factory = sessionmaker(bind=engine)
-
-
 
 
 class TxtSimilar(object):
@@ -135,7 +133,7 @@ if __name__ == '__main__':
         os.mkdir(corpus_dir)
     if not os.path.isdir(index_dir):
         os.mkdir(index_dir)
-    #index_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "data", "index"))
+
     tfidf_index_path = os.path.join(index_dir, "tfidf_index")
     logging.info("init TxtSimilar")
     txt_similar = TxtSimilar(corpus_dir)
@@ -143,10 +141,10 @@ if __name__ == '__main__':
     tfidf_model = TxtSimilar.init_model(models.TfidfModel, dictionary=txt_similar.dictionary)
     logging.info("register model to models.")
     txt_similar.register_model('tfidf', tfidf_model)
-    tfidf_similar_indexs = TxtSimilar.build_index(tfidf_index_path, txt_similar.corpus, len(txt_similar.dictionary), model=tfidf_model)
+    tfidf_similar_indexs = TxtSimilar.build_index(tfidf_index_path, txt_similar.corpus,
+                                                  len(txt_similar.dictionary), model=tfidf_model)
     logging.info("register index to similarity indexs.")
     txt_similar.register_similariti_indexs('tfidf', tfidf_similar_indexs)
     logging.info("update index to database...")
     txt_similar.update_index_to_db('tfidf')
 
-    # txt_similar.update_index_to_db()

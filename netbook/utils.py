@@ -15,7 +15,7 @@ import functools
 import redis
 import hashlib
 import chardet
-from src.spider.config import REDIS_HOST, REDIS_PORT, REDIS_DB
+from netbook.spider.config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from types import StringType
 import re
 import io
