@@ -22,9 +22,10 @@
             <div class="form-group">
                 <div class="input-group">
                     <input type="text"
-                           class="form-control"
+                           class="form-control typeahead"
                            v-model="key"
-                           placeholder="请输入书籍名， 例如 美女赢家"
+                           placeholder="请输入书籍名， 例如 美女图"
+                           @keyup="keyupSuggestion | debounce 400"
                            @keypress="enterSearch"
                     >
                     <span class="input-group-btn">
@@ -66,6 +67,7 @@
 <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
 <!--<script netbook="http://cdn.bootcss.com/jquery/1.11.1/jquery.min.js"></script>-->
 <script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
+<script src="//cdn.jsdelivr.net/typeahead.js/0.11.1/typeahead.jquery.min.js"></script>
 
 <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
 <script src="http://cdn.bootcss.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
@@ -76,6 +78,7 @@
         el: '#app',
         data: {
             books: [],
+            suggestions: [],
             key: ""
         },
         methods: {
@@ -87,21 +90,40 @@
                     this.searchBooks()
                 }
             },
+            keyupSuggestion: function () {
+                if (this.isKeyNull()) {
+                    return
+                }
+                this.suggestion()
+            },
             isKeyValid: function () {
                return !(this.key === "" || this.key === localStorage.key);
 
+            },
+            isKeyNull: function () {
+                return (this.key === "");
             },
             searchBooks: function () {
                 if (!this.isKeyValid()) {
                     return
                 }
-                $.getJSON('http://127.0.0.1:5000/api/netbook/recommend?key=' + v.$data.key + '&model=tfidf', function (data) {
-                    v.$data.books = JSON.parse(data.similarity_books)
+                $.getJSON('/api/netbook/recommend?key=' + v.$data.key + '&model=tfidf', function (data) {
+                    v.$data.books = JSON.parse(JSON.stringify(data.similarity_books));
                     localStorage.key = v.$data.key
                 }).fail(function () {
                     alert(v.$data.key + " 未找到相应书籍，请尝试其他书籍")
                 })
-            }
+            },
+            suggestion: function () {
+                $.getJSON('/api/netbook/suggestion?key=' + this.key, function (data) {
+                    console.log(v.$data.key);
+                    this.suggesions = JSON.parse(JSON.stringify(data.suggestions));
+                    v.$data.suggestions = this.suggesions
+
+                }).fail(function () {
+                    console.log("fail to load suggestion.")
+                })
+            },
         },
         components: {
             'book-row': {

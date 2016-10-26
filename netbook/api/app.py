@@ -3,12 +3,13 @@
 """
 
 """
-import json
+
+from pprint import pprint
 
 from flask import Flask, request, jsonify
 
 from netbook.database import db_session
-from netbook.models import Recommend
+from netbook.models import Recommend, NetBook
 
 __author__ = 'zhiyue'
 __copyright__ = "Copyright 2016"
@@ -37,9 +38,20 @@ def recommend():
         book_info["book_author"] = record.similar_book_author
         book_info["rate"] = record.similarity
         data['similarity_books'].append(book_info)
-    data['similarity_books'] = json.dumps(data['similarity_books'])
+    # data['similarity_books'] = json.dumps(data['similarity_books'])
     return jsonify(data)
     # return json.dumps(data)
+
+
+@app.route('/api/netbook/suggestion', methods=['GET'])
+def suggestion():
+    key = request.args.get('key')
+    query_string = u'%{}%'.format(key)
+    result = dict()
+    result['suggestions'] = [record.name for record in NetBook.query.filter(NetBook.name.like(query_string)).all()]
+    pprint(result)
+    # result['suggestions'] = json.dumps(result['suggestions'])
+    return jsonify(result)
 
 
 @app.route('/', methods=['GET'])
