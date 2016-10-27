@@ -48,7 +48,13 @@ def suggestion():
     key = request.args.get('key')
     query_string = u'%{}%'.format(key)
     result = dict()
-    result['suggestions'] = [record.name for record in NetBook.query.filter(NetBook.name.like(query_string)).all()]
+    result['suggestions'] = list()
+    records = NetBook.query.filter(NetBook.name.like(query_string)).all()
+    for record in records:
+        book_info = dict()
+        book_info["book_name"] = record.name
+        book_info["book_author"] = record.author
+        result['suggestions'].append(book_info)
     pprint(result)
     # result['suggestions'] = json.dumps(result['suggestions'])
     return jsonify(result)
